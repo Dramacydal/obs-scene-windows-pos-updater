@@ -66,7 +66,7 @@ def sync_scene_item(scene_item, scene_items):
   if not is_window_scene_item(scene_item):
     return
 
-  hwndMain = search_hwnd_by_scene(scene_item)
+  hwndMain = search_hwnd_by_scene_item(scene_item)
   if not hwndMain:
     return
 
@@ -130,7 +130,7 @@ def sync_scene_items():
   walk_scene_items_in_current_source(sync_scene_item)
 
 lookup = {}
-def search_hwnd_by_scene(scene_item):
+def search_hwnd_by_scene_item(scene_item):
   global lookup
   id = obs.obs_sceneitem_get_id(scene_item)
   if id in lookup:
