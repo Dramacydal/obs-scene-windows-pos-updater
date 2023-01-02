@@ -106,8 +106,6 @@ def script_save(settings):
   obs.obs_save_sources()
 
 def script_unload():
-  global is_enabled
-  is_enabled = False
   return
 
 def script_description():
@@ -269,6 +267,7 @@ def script_tick(seconds):
   scenes_invalidated = False
 
   if not is_enabled:
+    update_lock.release()
     return
 
   total_seconds = 0.0
