@@ -92,7 +92,6 @@ class SceneWindowPosUpdater:
       return
 
     self.log("Syncing HWND " + str(hwndMain))
-    #print(win32gui.IsIconic(hwndMain))
     is_visible = obs.obs_sceneitem_visible(scene_item)
     self.log("Is visible: " + str(is_visible))
     if win32gui.IsIconic(hwndMain):
@@ -111,6 +110,24 @@ class SceneWindowPosUpdater:
     self.sync_scene_item_pos(scene_item, hwndMain)
     return
 
+  def get_scene_item_uniq_id(self, scene_item):
+    source = obs.obs_sceneitem_get_source(scene_item)
+    if not source:
+      return ""
+    type = obs.obs_source_get_type(source)
+    if type != 0:
+      return ""
+
+    settings = obs.obs_source_get_settings(source)
+    if not settings:
+      return ""
+    window = obs.obs_data_get_string(settings, 'window')
+    if not window or window == "":
+      obs.obs_data_release(settings)
+      return ""
+    
+    return window
+
   def is_window_scene_item(self, scene_item):
     source = obs.obs_sceneitem_get_source(scene_item)
     if not source:
@@ -124,12 +141,15 @@ class SceneWindowPosUpdater:
       return False
     window = obs.obs_data_get_string(settings, 'window')
     if not window or window == "":
+      obs.obs_data_release(settings)
       return False
 
     capture_mode = obs.obs_data_get_string(settings, 'capture_mode')
     if capture_mode and capture_mode != "window":
+      obs.obs_data_release(settings)
       return False
 
+    obs.obs_data_release(settings)
     return True
 
   def is_scene_item_captured(self, scene_item):
@@ -148,11 +168,11 @@ class SceneWindowPosUpdater:
         if obs.obs_sceneitem_get_id(other_item) == obs.obs_sceneitem_get_id(scene_item):
           continue
 
-        otherHwnd = self.get_hwnd_by_scene_item(other_item)
-        if not otherHwnd or otherHwnd == hwnd:
+        if not self.is_window_scene_item(other_item):
           continue
 
-        if not self.is_window_scene_item(other_item):
+        otherHwnd = self.get_hwnd_by_scene_item(other_item)
+        if not otherHwnd or otherHwnd == hwnd:
           continue
 
         while obs.obs_sceneitem_get_order_position(other_item) > obs.obs_sceneitem_get_order_position(scene_item):
@@ -172,19 +192,21 @@ class SceneWindowPosUpdater:
   def get_hwnd_by_scene_item(self, scene_item):
     if not self.is_scene_item_captured(scene_item):
       return None
+    
+    uniq_id = self.get_scene_item_uniq_id(scene_item)
 
     id = obs.obs_sceneitem_get_id(scene_item)
     self.log("get_hwnd_by_scene_item: " + str(id))
-    if id in self.lookup:
-      self.log("Cached HWND for id " + str(id) + ": " + str(self.lookup[id]))
-      if win32gui.IsWindow(self.lookup[id]):
-        return self.lookup[id]
+    if uniq_id in self.lookup:
+      self.log("Cached HWND for id " + str(id) + ": " + str(self.lookup[uniq_id]))
+      if win32gui.IsWindow(self.lookup[uniq_id]):
+        return self.lookup[uniq_id]
 
-      del self.lookup[id]
+      del self.lookup[uniq_id]
 
     hwnd = self.search_scene_item_hwnd(scene_item)
     if hwnd:
-      self.lookup[id] = hwnd
+      self.lookup[uniq_id] = hwnd
     return hwnd
 
   def search_scene_item_hwnd(self, scene_item):
@@ -234,7 +256,7 @@ class SceneWindowPosUpdater:
       return None
     
     mainHwnd = self.find_window_for_pid(pid, className)
-    self.log("Main hwnd: " + str(mainHwnd))
+    self.log("hwnd: " + str(mainHwnd))
     return mainHwnd
   
   def find_window_for_pid(self, pid, className):
@@ -257,7 +279,6 @@ class SceneWindowPosUpdater:
       return
 
     rect = win32gui.GetWindowRect(hwnd)
-    # print(rect)
 
     hMonitor = win32api.MonitorFromWindow(hwnd, 0)
     if not hMonitor:
@@ -278,13 +299,13 @@ class SceneWindowPosUpdater:
 
   def unescape_window_name(self, str):
     def repl(m):
-      # print(m.group(1))
       ch = chr(int(m.group(1), 16))
       return ch
 
     return re.sub('#([A-Z0-9]{2})', repl, str)
   
   def log(self, msg):
+    return
     print("[" + datetime.today().strftime('%Y-%m-%d %H:%M:%S') + "] " + msg)
 
 
